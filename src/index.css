@@ -1,0 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --color-neon: #2DFF8F;
+  --color-dark-bg: #050505;
+  --color-dark-panel: #0A0A0A;
+  --color-dark-card: #111111;
+  --color-dark-border: #1a1a1a;
+  --color-dark-outer: #121212;
+}
+
+/* Custom scrollbars and sleek styles for TikTok vertical feed */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Custom pulsing animation for swapper glowing badge */
+@keyframes neonPulse {
+  0%, 100% {
+    box-shadow: 0 0 4px #2DFF8F, inset 0 0 2px #2DFF8F;
+  }
+  50% {
+    box-shadow: 0 0 12px #2DFF8F, inset 0 0 6px #2DFF8F;
+  }
+}
+.neon-glow {
+  animation: neonPulse 2s infinite;
+}
+
