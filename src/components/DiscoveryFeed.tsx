@@ -316,18 +316,6 @@ export default function DiscoveryFeed({
               <AlertTriangle className="w-4 h-4 text-red-500/80" />
               <span className="text-[8px] font-sans font-extrabold mt-0.5">Bildir</span>
             </button>
-
-            {/* Admin Delete Action */}
-            {currentUser.isAdmin && (
-              <button 
-                onClick={handleAdminDelete}
-                className="flex flex-col items-center justify-center w-11 h-11 bg-red-950/80 backdrop-blur-md rounded-2xl border border-red-500/30 hover:bg-red-900 text-red-105 hover:text-white transition-all cursor-pointer active:scale-90 shadow-xl animate-pulse"
-                title="Yönetici Olarak İlanı Sil"
-              >
-                <Trash2 className="w-4 h-4 text-red-450 text-red-400" />
-                <span className="text-[8px] font-sans font-black mt-0.5 uppercase tracking-tight text-red-350">Sil</span>
-              </button>
-            )}
           </div>
 
           {/* Vertical Controls on Sidebar (Right Side) */}

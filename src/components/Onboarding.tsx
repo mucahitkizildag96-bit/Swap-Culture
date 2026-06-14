@@ -384,20 +384,6 @@ export default function Onboarding({ onLoginSuccess }: OnboardingProps) {
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full bg-dark-card border border-dark-border text-zinc-200 text-xs p-3.5 rounded-2xl placeholder:text-zinc-650 focus:outline-none focus:border-neon font-sans"
                   />
-                  
-                  {/* Autofill helper for easy review/testing */}
-                  <div className="mt-2 text-right">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEmail("mucahitkizildag96@gmail.com");
-                        setPassword("mucahit123");
-                      }}
-                      className="text-[10.5px] text-zinc-400 font-mono hover:text-neon underline transition-colors"
-                    >
-                      Mücahit (Admin) demo e-postasını yerleştir
-                    </button>
-                  </div>
                 </div>
 
                 <div>
