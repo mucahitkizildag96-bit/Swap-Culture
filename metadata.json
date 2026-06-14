@@ -1,6 +1,1 @@
-{
-  "name": "Swap Culture",
-  "description": "Yeni nesil takas platformu - Sosyal takas ve modern esnek esya takas uygulamasi",
-  "requestFramePermissions": ["camera"],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
+[]
