@@ -4,8 +4,22 @@ import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { User, Item, SwapOffer, ChatMessage, Report, AppAnalytics } from "./src/types.js";
 
-const PORT = 3000;
-const DB_FILE = path.join(process.cwd(), "database.json");
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const DB_FILE = process.env.VERCEL 
+  ? path.join("/tmp", "database.json") 
+  : path.join(process.cwd(), "database.json");
+
+// pre-seed database.json to writable /tmp on Vercel from static bundle if needed
+if (process.env.VERCEL && !fs.existsSync(DB_FILE)) {
+  const bundleDbPath = path.join(process.cwd(), "database.json");
+  if (fs.existsSync(bundleDbPath)) {
+    try {
+      fs.copyFileSync(bundleDbPath, DB_FILE);
+    } catch (err) {
+      console.error("Failed to copy database.json to /tmp:", err);
+    }
+  }
+}
 
 // Helper to write database to disk
 function saveDatabase(data: any) {
@@ -385,17 +399,64 @@ function loadDatabase(): {
 // Instantiate Database
 const db = loadDatabase();
 
-async function startServer() {
-  const app = express();
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+const app = express();
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+export { app };
+
+async function startServer() {
   // API ROUTES
 
   // Auth: Email/Password, Google or Phone Login with Register support
   app.post("/api/auth/login", (req, res) => {
-    const { email, password, loginMode, phone, username: googleUsername, avatarUrl: googleAvatarUrl } = req.body;
+    const { email, password, loginMode, phone, username: googleUsername, avatarUrl: googleAvatarUrl, supabaseUserId } = req.body;
     
+    // 0. SUPABASE LOGIN SYNC
+    if (loginMode === "supabase") {
+      if (!supabaseUserId) {
+        return res.status(400).json({ error: "Supabase ID zorunludur." });
+      }
+
+      const targetEmail = (email || "").toLowerCase();
+      let user = db.users.find((u) => u.supabaseUserId === supabaseUserId || (targetEmail && u.email.toLowerCase() === targetEmail));
+
+      if (!user) {
+        const isFirst = db.users.length === 0;
+        const autoUsername = googleUsername || (targetEmail ? targetEmail.split("@")[0].replace(/[^a-zA-Z0-9]/g, "_") : `sb_${Math.random().toString(36).substr(2, 5)}`);
+        user = {
+          id: "u_" + Math.random().toString(36).substr(2, 9),
+          email: targetEmail || `${supabaseUserId}@supabase.temp`,
+          username: autoUsername,
+          city: "İstanbul",
+          avatarUrl: googleAvatarUrl || `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80`,
+          rating: 5.0,
+          ratingCount: 0,
+          completedSwaps: 0,
+          bio: "Swap Culture dünyasına yeni katıldı!",
+          isVerified: false,
+          isBlocked: false,
+          isAdmin: isFirst,
+          createdAt: new Date().toISOString(),
+          phoneVerified: false,
+          supabaseUserId: supabaseUserId
+        };
+        db.users.push(user);
+        saveDatabase(db);
+      } else {
+        if (!user.supabaseUserId) {
+          user.supabaseUserId = supabaseUserId;
+          saveDatabase(db);
+        }
+      }
+
+      if (user.isBlocked) {
+        return res.status(403).json({ error: "Hesabınız yönetici tarafından engellenmiştir." });
+      }
+
+      return res.json({ user });
+    }
+
     // 1. PHONE LOGIN
     if (loginMode === "phone") {
       if (!phone) {
@@ -1117,9 +1178,12 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Swap Culture backend running at http://0.0.0.0:${PORT}`);
-  });
+  // Only listen if not running in Vercel Serverless environment
+  if (!process.env.VERCEL) {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Swap Culture backend running at http://0.0.0.0:${PORT}`);
+    });
+  }
 }
 
 startServer();

@@ -14,6 +14,7 @@ export interface User {
   createdAt: string;
   phone?: string;
   phoneVerified?: boolean;
+  supabaseUserId?: string;
 }
 
 export interface Item {

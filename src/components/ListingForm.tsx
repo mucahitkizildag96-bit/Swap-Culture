@@ -290,7 +290,7 @@ export default function ListingForm({ currentUser, onSuccess }: ListingFormProps
               <span className={isCoverSelectedExplicitly ? "text-neon font-bold" : "text-zinc-300"}>
                 {isCoverSelectedExplicitly 
                   ? "Seçtiğiniz Vitrin Görseli" 
-                  : "Varsayılan Vitrin Görseli (Rastgele Seçilecektir)"}
+                  : "Vitrin Görseli (Kendiniz seçin, seçmezseniz rastgele seçilecektir)"}
               </span>
             </div>
           </div>

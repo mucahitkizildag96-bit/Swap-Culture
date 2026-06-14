@@ -5,11 +5,12 @@ const API_BASE = "";
 export async function login(paramsOrEmail: string | {
   email?: string;
   password?: string;
-  loginMode?: "email" | "google" | "phone";
+  loginMode?: "email" | "google" | "phone" | "supabase";
   phone?: string;
   username?: string;
   avatarUrl?: string;
   isRegister?: boolean;
+  supabaseUserId?: string;
 }): Promise<User> {
   const body = typeof paramsOrEmail === "string" ? { email: paramsOrEmail } : paramsOrEmail;
   const res = await fetch(`${API_BASE}/api/auth/login`, {

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { login, onboard } from "../utils";
 import { User } from "../types";
+import { supabase, isSupabaseConfigured } from "../utils/supabase";
 import { 
   RefreshCw, 
   MapPin, 
@@ -84,7 +85,46 @@ export default function Onboarding({ onLoginSuccess }: OnboardingProps) {
       setIsLoading(true);
       setErrorText("");
       
-      const user = await login({ email, password, loginMode: "email", isRegister: isRegisterMode });
+      let user: User;
+
+      if (isSupabaseConfigured() && supabase) {
+        if (isRegisterMode) {
+          // Supabase signup
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+          });
+          if (error) throw new Error(error.message);
+          if (!data.user) throw new Error("Supabase kayıt işlemi başarısız.");
+          
+          // Sync with local backend
+          user = await login({
+            email,
+            loginMode: "supabase",
+            supabaseUserId: data.user.id,
+            isRegister: true,
+          });
+        } else {
+          // Supabase signin
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (error) throw new Error(error.message);
+          if (!data.user) throw new Error("Supabase giriş işlemi başarısız.");
+          
+          // Sync with local backend
+          user = await login({
+            email,
+            loginMode: "supabase",
+            supabaseUserId: data.user.id,
+          });
+        }
+      } else {
+        // Fallback to offline/mock preset database auth
+        user = await login({ email, password, loginMode: "email", isRegister: isRegisterMode });
+      }
+      
       checkUserOnboardFlow(user);
     } catch (err: any) {
       setErrorText(err.message || "Giriş esnasında teknik bir aksaklık yaşandı.");
