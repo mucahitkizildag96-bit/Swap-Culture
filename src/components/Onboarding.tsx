@@ -365,179 +365,66 @@ export default function Onboarding({ onLoginSuccess }: OnboardingProps) {
 
           <div className="space-y-1.5 text-center">
             <h2 className="text-xl font-display font-extrabold text-white">Giriş Yap / Üye Ol</h2>
-            <p className="text-xs text-zinc-400">Takas dünyasına katılmak için dilediğiniz yöntemi seçin.</p>
+            <p className="text-xs text-zinc-400">E-posta ve şifreniz ile güvenli giriş yapın veya yeni bir hesap oluşturun.</p>
           </div>
 
-          {/* MAIN AUTH FORMS (E-MAIL BY DEFAULT, WITH MORE PROMINENT OPTIONS BELOW) */}
-          {selectedTab === "email" && (
-            <div className="space-y-4">
-              <form onSubmit={(e) => handleEmailAuth(e, false)} className="space-y-4 text-left">
-                <div>
-                  <label className="block text-zinc-500 text-[10.5px] font-mono uppercase tracking-wider mb-1.5">
-                    E-POSTA ADRESI
-                  </label>
+          <div className="space-y-4">
+            <form onSubmit={(e) => handleEmailAuth(e, false)} className="space-y-4 text-left">
+              <div>
+                <label className="block text-zinc-500 text-[10.5px] font-mono uppercase tracking-wider mb-1.5">
+                  E-POSTA ADRESI
+                </label>
+                <input 
+                  type="email"
+                  required
+                  placeholder="isim@gmail.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-dark-card border border-dark-border text-zinc-200 text-xs p-3.5 rounded-2xl placeholder:text-zinc-650 focus:outline-none focus:border-neon font-sans"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-500 text-[10.5px] font-mono uppercase tracking-wider mb-1.5">
+                  ŞİFRE
+                </label>
+                <div className="relative">
                   <input 
-                    type="email"
-                    required
-                    placeholder="isim@gmail.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-dark-card border border-dark-border text-zinc-200 text-xs p-3.5 rounded-2xl placeholder:text-zinc-650 focus:outline-none focus:border-neon font-sans"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-dark-card border border-dark-border text-zinc-200 text-xs p-3.5 rounded-2xl placeholder:text-zinc-650 focus:outline-none focus:border-neon font-sans pr-10"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-zinc-500 text-[10.5px] font-mono uppercase tracking-wider mb-1.5">
-                    ŞİFRE
-                  </label>
-                  <div className="relative">
-                    <input 
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-dark-card border border-dark-border text-zinc-200 text-xs p-3.5 rounded-2xl placeholder:text-zinc-650 focus:outline-none focus:border-neon font-sans pr-10"
-                    />
-                    <div className="absolute right-3.5 top-3.5 text-zinc-600">
-                      <Lock className="w-4 h-4" />
-                    </div>
+                  <div className="absolute right-3.5 top-3.5 text-zinc-600">
+                    <Lock className="w-4 h-4" />
                   </div>
                 </div>
-
-                {errorText && <p className="text-red-500 text-xs font-sans text-center">{errorText}</p>}
-
-                <div className="grid grid-cols-2 gap-3 pt-1">
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="py-3.5 bg-neon hover:opacity-95 text-black font-sans font-black uppercase text-xs rounded-2xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md select-none"
-                  >
-                    {isLoading ? "Giriş..." : "Giriş Yap"}
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleEmailAuth(null, true)}
-                    disabled={isLoading}
-                    className="py-3.5 bg-dark-card border border-neon/30 hover:border-neon text-neon hover:bg-neon/5 font-sans font-black uppercase text-xs rounded-2xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md select-none"
-                  >
-                    {isLoading ? "Kayıt..." : "Kayıt Ol"}
-                    <UserPlus className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </form>
-
-              {/* SEPARATOR FOR ALTERNATIVES */}
-              <div className="relative flex py-3 items-center">
-                <div className="flex-grow border-t border-dark-border/40"></div>
-                <span className="flex-shrink mx-4 text-[9px] text-zinc-500 font-mono tracking-widest uppercase">veya şununla bağlanın</span>
-                <div className="flex-grow border-t border-dark-border/40"></div>
               </div>
 
-              {/* HIGHLIGHTED ALTERNATIVE METHODS */}
-              <div className="space-y-3 pt-1">
-                <button
-                  type="button"
-                  onClick={handleGoogleAuth}
-                  disabled={isLoading}
-                  className="w-full py-4 bg-white hover:bg-zinc-100 text-zinc-90 w font-sans font-extrabold text-xs rounded-2xl transition-all flex items-center justify-center gap-2.5 cursor-pointer shadow-lg active:scale-[0.985] text-zinc-900 border border-transparent select-none"
-                >
-                  <svg className="w-4.5 h-4.5" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M23.8 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.6c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.9-5 3.9-8.7z" />
-                    <path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-2.9l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.3 0-6.1-2.2-7.1-5.2l-3.8 2.9C3.1 20.3 7.2 24 12 24z" />
-                    <path fill="#FBBC05" d="M4.9 14.2c-.3-.8-.4-1.7-.4-2.7s.1-1.9.4-2.7l-3.8-2.9C.4 7.6 0 9.7 0 12s.4 4.4 1.1 6.1l3.8-2.9z" />
-                    <path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4C17.9 1.2 15.2 0 12 0 7.2 0 3.1 3.7 1.1 7.9l3.8 2.9c1-3 3.8-5.2 7.1-5.2z" />
-                  </svg>
-                  Google Hesabı ile Giriş Yap
-                </button>
+              {errorText && <p className="text-red-500 text-xs font-sans text-center">{errorText}</p>}
 
-                <button
-                  type="button"
-                  onClick={() => { setSelectedTab("phone"); setErrorText(""); }}
-                  className="w-full py-4 bg-dark-card hover:bg-dark-panel border border-dark-border hover:border-neon/40 text-zinc-300 hover:text-white font-sans font-bold text-xs rounded-2xl transition-all flex items-center justify-center gap-2.5 cursor-pointer shadow-md select-none"
-                >
-                  <Smartphone className="w-4 h-4 text-neon animate-pulse" />
-                  Telefon Numarası ile SMS Girişi
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: PHONE AUTH */}
-          {selectedTab === "phone" && (
-            <div className="space-y-4">
-              <form onSubmit={handlePhoneRequestSms} className="space-y-4 text-left">
-                <div>
-                  <label className="block text-zinc-500 text-[10.5px] font-mono uppercase tracking-wider mb-1.5">
-                    Telefon Numarası
-                  </label>
-                  <div className="flex gap-2">
-                    <div className="bg-dark-panel border border-dark-border text-zinc-400 text-xs p-3.5 rounded-2xl font-mono select-none flex items-center">
-                      +90
-                    </div>
-                    <input 
-                      type="tel"
-                      required
-                      maxLength={10}
-                      placeholder="555 555 55 55"
-                      value={phone}
-                      onChange={(e) => {
-                        const clean = e.target.value.replace(/\D/g, "");
-                        setPhone(clean);
-                      }}
-                      className="flex-1 bg-dark-card border border-dark-border text-zinc-200 text-xs p-3.5 rounded-2xl placeholder:text-zinc-650 focus:outline-none focus:border-neon font-mono tracking-widest"
-                    />
-                  </div>
-                  <p className="text-[10px] text-zinc-500 mt-2 leading-relaxed">
-                    Hesabınıza güvenli erişim için tek kullanımlık SMS onay kodu iletilecektir.
-                  </p>
-                </div>
-
-                {errorText && <p className="text-red-500 text-xs font-sans text-center">{errorText}</p>}
-
+              <div className="grid grid-cols-2 gap-3 pt-1">
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-4 bg-neon text-black font-sans font-black uppercase text-xs rounded-2xl hover:opacity-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md select-none"
+                  className="py-3.5 bg-neon hover:opacity-95 text-black font-sans font-black uppercase text-xs rounded-2xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md select-none"
                 >
-                  {isLoading ? "Kod Hazırlanıyor..." : "Doğrulama Kodu Gönder"}
-                  <ArrowRight className="w-4 h-4 font-black" />
-                </button>
-              </form>
-
-              {/* SEPARATOR FOR ALTERNATIVES IN PHONE FLOW */}
-              <div className="relative flex py-3 items-center">
-                <div className="flex-grow border-t border-dark-border/40"></div>
-                <span className="flex-shrink mx-4 text-[9px] text-zinc-500 font-mono tracking-widest uppercase">Geri Dön</span>
-                <div className="flex-grow border-t border-dark-border/40"></div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => { setSelectedTab("email"); setErrorText(""); }}
-                  className="py-3 bg-dark-card border border-dark-border hover:border-neon/30 text-zinc-300 hover:text-white font-sans font-bold text-[11px] rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer select-none"
-                >
-                  <Mail className="w-3.5 h-3.5 text-zinc-500" />
-                  E-Posta Seçeneği
+                  {isLoading ? "Giriş..." : "Giriş Yap"}
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
                 <button
                   type="button"
-                  onClick={handleGoogleAuth}
+                  onClick={() => handleEmailAuth(null, true)}
                   disabled={isLoading}
-                  className="py-3 bg-white hover:bg-zinc-100 text-zinc-950 font-sans font-extrabold text-[11px] rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer select-none"
+                  className="py-3.5 bg-dark-card border border-neon/30 hover:border-neon text-neon hover:bg-neon/5 font-sans font-black uppercase text-xs rounded-2xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md select-none"
                 >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M23.8 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.6c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.9-5 3.9-8.7z" />
-                    <path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-2.9l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.3 0-6.1-2.2-7.1-5.2l-3.8 2.9C3.1 20.3 7.2 24 12 24z" />
-                    <path fill="#FBBC05" d="M4.9 14.2c-.3-.8-.4-1.7-.4-2.7s.1-1.9.4-2.7l-3.8-2.9C.4 7.6 0 9.7 0 12s.4 4.4 1.1 6.1l3.8-2.9z" />
-                    <path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4C17.9 1.2 15.2 0 12 0 7.2 0 3.1 3.7 1.1 7.9l3.8 2.9c1-3 3.8-5.2 7.1-5.2z" />
-                  </svg>
-                  Google
+                  {isLoading ? "Kayıt..." : "Kayıt Ol"}
+                  <UserPlus className="w-3.5 h-3.5" />
                 </button>
               </div>
-            </div>
-          )}
+            </form>
+          </div>
         </div>
       )}
 

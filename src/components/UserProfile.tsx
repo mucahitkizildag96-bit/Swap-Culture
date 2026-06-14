@@ -103,7 +103,6 @@ export default function UserProfile({
     setCity(currentUser.city);
     setBio(currentUser.bio || "");
     setAvatarUrl(currentUser.avatarUrl);
-    setPhoneToVerify(currentUser.phone || "");
   }, [currentUser]);
 
   const handleCancelEdit = () => {
@@ -459,130 +458,7 @@ export default function UserProfile({
             )}
           </div>
 
-          {/* Telefon Numarası Doğrulama Bölümü (Relocated next to face scan) */}
-          <div className="p-4 bg-dark-panel/40 rounded-2xl border border-dark-border/60 space-y-3">
-            <div className="text-[11px] text-zinc-500 font-mono uppercase tracking-wider flex items-center gap-1.5">
-              <Smartphone className="w-3.5 h-3.5 text-neon" /> CEP TELEFONU DOĞRULAMA (MAVİ TİK)
-            </div>
-            
-            {currentUser.phoneVerified ? (
-              <div className="flex items-center gap-2 bg-emerald-950/20 border border-emerald-500/20 p-3 rounded-xl text-emerald-400">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                <div className="text-left text-xs font-sans">
-                  <span className="font-bold text-white block">Telefon Onaylandı</span>
-                  Telefon numaranız ({currentUser.phone || "Kayıtlı"}) onaylandı. Mavi tik rozetiniz aktif.
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3 text-left">
-                <p className="text-[10.5px] text-zinc-400 leading-relaxed font-sans">
-                  Profilinizi bir telefon numarasıyla doğrulayarak diğer takasçılara güven verin ve "Güvenli Profil" rozeti kazanın!
-                </p>
 
-                {isVerifyingState === "idle" && (
-                  <div className="space-y-2.5">
-                    <div className="flex gap-2">
-                      <div className="bg-dark-card border border-dark-border text-zinc-400 text-xs p-3 rounded-xl font-mono select-none flex items-center">
-                        +90
-                      </div>
-                      <input 
-                        type="tel"
-                        maxLength={10}
-                        placeholder="555 555 55 55"
-                        value={phoneToVerify}
-                        onChange={(e) => {
-                          const clean = e.target.value.replace(/\D/g, "");
-                          setPhoneToVerify(clean);
-                        }}
-                        className="flex-1 bg-zinc-950 border border-dark-border text-zinc-200 text-xs p-3 rounded-xl placeholder:text-zinc-650 focus:outline-none focus:border-neon font-mono tracking-wider"
-                      />
-                    </div>
-                    {phoneError && <p className="text-red-500 text-[10px] text-center font-sans">{phoneError}</p>}
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const cleaned = phoneToVerify.replace(/\s+/g, "");
-                        if (!cleaned || cleaned.length < 9) {
-                          setPhoneError("Lütfen geçerli bir telefon numarası girin.");
-                          return;
-                        }
-                        setPhoneError("");
-                        setIsVerifyingState("code_sent");
-                        setPhoneSuccess("SMS ile iletilen 6 haneli test kodu: 123456");
-                      }}
-                      className="w-full py-2.5 bg-neon hover:bg-neon/90 text-black font-sans font-bold text-xs rounded-xl transition-all cursor-pointer text-center"
-                    >
-                      Doğrulama SMS'i Gönder
-                    </button>
-                  </div>
-                )}
-
-                {isVerifyingState === "code_sent" && (
-                  <div className="space-y-2.5 bg-dark-card p-3 rounded-xl border border-dark-border/60">
-                    <div className="text-[10px] text-zinc-400 font-mono">DOĞRULAMA KODU GİRİN</div>
-                    <input 
-                      type="text"
-                      maxLength={6}
-                      placeholder="Doğrulama kodu (Test için: 123456)"
-                      value={verificationCodeInput}
-                      onChange={(e) => {
-                        const clean = e.target.value.replace(/\D/g, "");
-                        setVerificationCodeInput(clean);
-                      }}
-                      className="w-full bg-zinc-950 border border-dark-border text-zinc-200 text-xs p-2.5 rounded-lg placeholder:text-zinc-650 focus:outline-none focus:border-neon font-mono text-center tracking-[0.5em] text-md"
-                    />
-                    {phoneSuccess && <p className="text-neon text-[9.5px] leading-tight font-sans">{phoneSuccess}</p>}
-                    {phoneError && <p className="text-red-500 text-[10px] leading-tight font-sans">{phoneError}</p>}
-                    
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsVerifyingState("idle");
-                          setVerificationCodeInput("");
-                          setPhoneError("");
-                        }}
-                        className="flex-1 py-2 bg-dark-card border border-dark-border hover:bg-zinc-900 text-zinc-400 text-xs font-sans rounded-lg transition-all cursor-pointer"
-                      >
-                        Vazgeç
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (verificationCodeInput !== "123456") {
-                            setPhoneError("Hatalı doğrulama kodu. Test kodu: 123456");
-                            return;
-                          }
-                          
-                          try {
-                            setPhoneError("");
-                            const { verifyPhone } = await import("../utils");
-                            const updatedUser = await verifyPhone(currentUser.id, phoneToVerify, verificationCodeInput);
-                            onProfileUpdated(updatedUser);
-                            setIsVerifyingState("success");
-                          } catch (err: any) {
-                            setPhoneError(err.message || "Doğrulama tamamlanırken bir hata oluştu.");
-                          }
-                        }}
-                        className="flex-1 py-2 bg-neon text-black font-sans font-bold text-xs rounded-lg transition-all cursor-pointer animate-none"
-                      >
-                        Kodu Doğrula
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {isVerifyingState === "success" && (
-                  <div className="bg-emerald-950/20 border border-emerald-500/20 p-3 rounded-xl text-emerald-400 flex items-center gap-2">
-                    <span className="text-emerald-400 text-xs font-bold font-sans">✓</span>
-                    <div className="text-[10px] font-sans">
-                      Telefon doğrulamanız başarıyla tamamlandı! Mavi tik profilinize uygulandı.
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
 
           {errorMsg && <p className="text-red-500 text-xs font-sans">{errorMsg}</p>}
 
