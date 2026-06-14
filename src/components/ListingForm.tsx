@@ -78,13 +78,24 @@ export default function ListingForm({ currentUser, onSuccess }: ListingFormProps
 
     setUploadProgress(true);
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       if (typeof reader.result === "string") {
-        setImages(prev => {
-          const next = [...prev];
-          next[idx] = reader.result as string;
-          return next;
-        });
+        try {
+          const { compressImage } = await import("../utils/imageCompressor");
+          const compressed = await compressImage(reader.result, 600, 600, 0.7);
+          setImages(prev => {
+            const next = [...prev];
+            next[idx] = compressed;
+            return next;
+          });
+        } catch (err) {
+          console.error("Compression failed, using original size:", err);
+          setImages(prev => {
+            const next = [...prev];
+            next[idx] = reader.result as string;
+            return next;
+          });
+        }
       }
       setUploadProgress(false);
     };

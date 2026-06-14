@@ -320,6 +320,37 @@ function saveLocalDB(db: LocalDB) {
 }
 
 // -----------------------------------------------------------------------------
+// BACKEND REAL-TIME SYNCHRONIZATION HELPERS (PORT 3000 SYNC)
+// -----------------------------------------------------------------------------
+async function apiGet<T>(url: string, fallback: T): Promise<T> {
+  try {
+    const res = await fetch(url);
+    if (res.ok) {
+      return await res.json() as T;
+    }
+  } catch (err) {
+    console.warn(`apiGet failed for ${url}, utilizing local storage callback:`, err);
+  }
+  return fallback;
+}
+
+async function apiPost<T>(url: string, body: any, fallback: T): Promise<T> {
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      return await res.json() as T;
+    }
+  } catch (err) {
+    console.warn(`apiPost failed for ${url}, logging action locally:`, err);
+  }
+  return fallback;
+}
+
+// -----------------------------------------------------------------------------
 // CORE SUPABASE / LOCAL DATA INTERFACE COMPLIANCE
 // -----------------------------------------------------------------------------
 
@@ -441,10 +472,12 @@ export async function login(paramsOrEmail: string | {
       };
       db.users.push(matched);
       saveLocalDB(db);
+      await apiPost<User>("/api/users", matched, matched);
     } else {
       if (!matched.supabaseUserId) {
         matched.supabaseUserId = supabaseUserId;
         saveLocalDB(db);
+        await apiPost<User>("/api/users", matched, matched);
       }
     }
     if (matched.isBlocked) throw new Error("Hesabınız engellenmiştir.");
@@ -474,6 +507,7 @@ export async function login(paramsOrEmail: string | {
       };
       db.users.push(found);
       saveLocalDB(db);
+      await apiPost<User>("/api/users", found, found);
     } else {
       throw new Error("Kullanıcı bulunamadı. Lütfen kayıt olun.");
     }
@@ -504,6 +538,7 @@ export async function verifyPhone(userId: string, phone: string, code: string): 
   user.phone = phone;
   user.phoneVerified = true;
   saveLocalDB(db);
+  await apiPost<User>("/api/users", user, user);
   return user;
 }
 
@@ -527,6 +562,7 @@ export async function verifyFace(userId: string): Promise<User> {
   if (!user) throw new Error("Kullanıcı bulunamadı.");
   user.isVerified = true;
   saveLocalDB(db);
+  await apiPost<User>("/api/users", user, user);
   return user;
 }
 
@@ -564,6 +600,7 @@ export async function onboard(params: {
   if (params.bio !== undefined) user.bio = params.bio;
   if (params.avatarUrl !== undefined) user.avatarUrl = params.avatarUrl;
   saveLocalDB(db);
+  await apiPost<User>("/api/users", user, user);
   return user;
 }
 
@@ -601,7 +638,13 @@ export async function getAdminUsers(): Promise<User[]> {
   }
 
   const db = loadLocalDB();
-  return db.users;
+  const fallback = db.users;
+  const serverUsers = await apiGet<User[]>("/api/users", fallback);
+  if (serverUsers !== fallback) {
+    db.users = serverUsers;
+    saveLocalDB(db);
+  }
+  return serverUsers;
 }
 
 export async function updateAdminUser(id: string, params: { isBlocked?: boolean; isVerified?: boolean }): Promise<User> {
@@ -642,7 +685,16 @@ export async function getItems(): Promise<Item[]> {
   }
 
   const db = loadLocalDB();
-  return db.items.filter(i => i.isModerated !== false);
+  const fallback = db.items.filter(i => i.isModerated !== false);
+  const serverItems = await apiGet<Item[]>("/api/items", fallback);
+  
+  // Update local storage so that any offline or other screen logic remains fully synchronized
+  if (serverItems !== fallback) {
+    db.items = serverItems;
+    saveLocalDB(db);
+  }
+  
+  return serverItems.filter(i => i.isModerated !== false);
 }
 
 export async function createItem(params: {
@@ -698,6 +750,10 @@ export async function createItem(params: {
   const db = loadLocalDB();
   db.items.unshift(newItem);
   saveLocalDB(db);
+
+  // Send to our live server API for cross-device visibility
+  await apiPost<Item>("/api/items", newItem, newItem);
+
   return newItem;
 }
 
@@ -717,6 +773,13 @@ export async function deleteItem(id: string): Promise<boolean> {
   const db = loadLocalDB();
   db.items = db.items.filter(i => i.id !== id);
   saveLocalDB(db);
+
+  try {
+    await fetch(`/api/items/${id}`, { method: "DELETE" });
+  } catch (err) {
+    console.warn("Backend API deleteItem failed:", err);
+  }
+
   return true;
 }
 
@@ -761,6 +824,9 @@ export async function reportItem(id: string, reporterId: string, reason: string)
   if (item) item.reportsCount = (item.reportsCount || 0) + 1;
   db.reports.unshift(newReport);
   saveLocalDB(db);
+
+  await apiPost<Report>("/api/reports", newReport, newReport);
+
   return true;
 }
 
@@ -786,6 +852,9 @@ export async function incrementView(id: string): Promise<Item> {
   if (!item) throw new Error("İlan bulunamadı.");
   item.views = (item.views || 0) + 1;
   saveLocalDB(db);
+
+  await apiPost<Item>(`/api/items/${id}/view`, {}, item);
+
   return item;
 }
 
@@ -803,7 +872,13 @@ export async function getSwaps(userId: string): Promise<SwapOffer[]> {
   }
 
   const db = loadLocalDB();
-  return db.swaps.filter(s => s.proposerId === userId || s.receiverId === userId);
+  const fallback = db.swaps;
+  const serverSwaps = await apiGet<SwapOffer[]>("/api/swaps", fallback);
+  if (serverSwaps !== fallback) {
+    db.swaps = serverSwaps;
+    saveLocalDB(db);
+  }
+  return serverSwaps.filter(s => s.proposerId === userId || s.receiverId === userId);
 }
 
 export async function proposeSwap(params: {
@@ -857,6 +932,9 @@ export async function proposeSwap(params: {
 
   db.swaps.unshift(newSwap);
   saveLocalDB(db);
+
+  await apiPost<SwapOffer>("/api/swaps", newSwap, newSwap);
+
   return newSwap;
 }
 
@@ -903,6 +981,9 @@ export async function updateSwapStatus(id: string, status: string, updaterId: st
   }
   
   saveLocalDB(db);
+
+  await apiPost<any>(`/api/swaps/${id}/status`, { status, updaterId }, swap);
+
   return swap;
 }
 
@@ -975,7 +1056,13 @@ export async function getChatMessages(swapId: string): Promise<ChatMessage[]> {
   }
 
   const db = loadLocalDB();
-  return db.chats.filter(c => c.swapId === swapId).sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  const fallback = db.chats;
+  const serverChats = await apiGet<ChatMessage[]>("/api/chats", fallback);
+  if (serverChats !== fallback) {
+    db.chats = serverChats;
+    saveLocalDB(db);
+  }
+  return serverChats.filter(c => c.swapId === swapId).sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 }
 
 export async function sendChatMessage(swapId: string, senderId: string, text: string, imageUrl?: string): Promise<ChatMessage> {
@@ -1004,6 +1091,9 @@ export async function sendChatMessage(swapId: string, senderId: string, text: st
   const db = loadLocalDB();
   db.chats.push(newMessage);
   saveLocalDB(db);
+
+  await apiPost<ChatMessage>("/api/chats", newMessage, newMessage);
+
   return newMessage;
 }
 

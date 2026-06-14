@@ -78,9 +78,16 @@ export default function Chats({ activeSwap, currentUser, onGoBack }: ChatsProps)
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onloadend = () => {
+    reader.onloadend = async () => {
       if (typeof reader.result === "string") {
-        setAttachedImageUrl(reader.result);
+        try {
+          const { compressImage } = await import("../utils/imageCompressor");
+          const compressed = await compressImage(reader.result, 500, 500, 0.7);
+          setAttachedImageUrl(compressed);
+        } catch (err) {
+          console.error(err);
+          setAttachedImageUrl(reader.result);
+        }
       }
     };
     reader.readAsDataURL(file);

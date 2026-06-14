@@ -58,15 +58,19 @@ export default function Onboarding({ onLoginSuccess }: OnboardingProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        setErrorText("Görsel boyutu en fazla 2MB olabilir.");
-        return;
-      }
       const reader = new FileReader();
-      reader.onload = () => {
+      reader.onload = async () => {
         if (typeof reader.result === "string") {
-          setAvatarUrl(reader.result);
-          setErrorText("");
+          try {
+            const { compressImage } = await import("../utils/imageCompressor");
+            const compressed = await compressImage(reader.result, 200, 200, 0.65);
+            setAvatarUrl(compressed);
+            setErrorText("");
+          } catch (err) {
+            console.error(err);
+            setAvatarUrl(reader.result);
+            setErrorText("");
+          }
         }
       };
       reader.readAsDataURL(file);
@@ -215,11 +219,13 @@ export default function Onboarding({ onLoginSuccess }: OnboardingProps) {
     }
   };
 
+  const DEFAULT_AVATAR = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23a1a1aa"><rect width="24" height="24" fill="%2327272a"/><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`;
+
   const handleOnboardComplete = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tempUser) return;
-    if (!username || !city || !avatarUrl) {
-      setErrorText("Kullanıcı adı, yaşadığınız şehir ve profil fotoğrafı alanları zorunludur.");
+    if (!username || !city) {
+      setErrorText("Kullanıcı adı ve yaşadığınız şehir alanları zorunludur.");
       return;
     }
 
@@ -231,7 +237,7 @@ export default function Onboarding({ onLoginSuccess }: OnboardingProps) {
         userId: tempUser.id,
         username,
         city,
-        avatarUrl,
+        avatarUrl: avatarUrl || DEFAULT_AVATAR,
         bio: bio || "Takas yapmayı seviyorum!"
       });
       
@@ -516,21 +522,15 @@ export default function Onboarding({ onLoginSuccess }: OnboardingProps) {
           {/* Custom Avatar Selector without suggestion presets */}
           <div>
             <label className="block text-zinc-500 text-[10px] font-mono uppercase tracking-wider mb-2">
-              Profil Fotoğrafı <span className="text-neon">*</span>
+              Profil Fotoğrafı (İsteğe Bağlı)
             </label>
             <div className="flex items-center gap-4 bg-dark-panel p-4 rounded-2xl border border-dark-border">
-              {avatarUrl ? (
-                <div className="w-16 h-16 rounded-full border-2 border-neon overflow-hidden shrink-0 relative bg-dark-card shadow-lg shadow-neon/15">
-                  <img src={avatarUrl} alt="Profil Önizleme" className="w-full h-full object-cover" />
-                </div>
-              ) : (
-                <div className="w-16 h-16 rounded-full border-2 border-dashed border-zinc-700 shrink-0 bg-dark-card flex items-center justify-center text-zinc-600 text-[11px] font-mono">
-                  Foto Yok
-                </div>
-              )}
+              <div className="w-16 h-16 rounded-full border-2 border-neon overflow-hidden shrink-0 relative bg-dark-card shadow-lg shadow-neon/15">
+                <img src={avatarUrl || DEFAULT_AVATAR} alt="Profil Önizleme" className="w-full h-full object-cover" />
+              </div>
               <div className="flex-1 space-y-1.5 text-left">
                 <p className="text-[10px] text-zinc-400 font-sans leading-normal">
-                  Yüzünüzü net gösteren kendi fotoğrafınızı yükleyin. Bu bilgi profil güvenliği açısından zorunludur.
+                  Dilediğiniz bir profil fotoğrafı yükleyin. Boş bırakırsanız varsayılan profil resminiz geçerli olur.
                 </p>
                 <label className="cursor-pointer inline-flex items-center gap-1.5 bg-dark-card hover:bg-dark-panel border border-dark-border text-zinc-300 hover:text-white px-3 py-2 rounded-xl text-[10.5px] font-sans transition-colors select-none">
                   <Upload className="w-3.5 h-3.5 text-neon" />
@@ -540,7 +540,6 @@ export default function Onboarding({ onLoginSuccess }: OnboardingProps) {
                      accept="image/*" 
                      onChange={handleFileChange} 
                      className="hidden" 
-                     required
                   />
                 </label>
               </div>

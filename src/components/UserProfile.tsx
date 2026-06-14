@@ -47,6 +47,8 @@ const AVATAR_POOL = [
   "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80"
 ];
 
+const DEFAULT_AVATAR = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23a1a1aa"><rect width="24" height="24" fill="%2327272a"/><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`;
+
 const PROVINCES = [
   "İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", 
   "Adana", "Konya", "Gaziantep", "Eskişehir", "Trabzon"
@@ -120,113 +122,7 @@ export default function UserProfile({
     (bio || "") !== (currentUser.bio || "") ||
     avatarUrl !== currentUser.avatarUrl;
 
-  // Face Verification States
-  const [isFaceScanning, setIsFaceScanning] = useState(false);
-  const [faceScanStep, setFaceScanStep] = useState<"idle" | "camera_loading" | "scanning" | "comparing" | "success" | "error">("idle");
-  const [faceScanProgress, setFaceScanProgress] = useState(0);
-  const [faceScanError, setFaceScanError] = useState("");
-  const [compatibilityScore, setCompatibilityScore] = useState(0);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-
-  const startFaceScan = async () => {
-    setIsFaceScanning(true);
-    setFaceScanStep("camera_loading");
-    setFaceScanProgress(0);
-    setFaceScanError("");
-    setCompatibilityScore(0);
-
-    try {
-      // Access camera
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { width: 400, height: 400, facingMode: "user" } 
-      });
-      streamRef.current = stream;
-      
-      // We wait a tiny bit to make sure video ref is available
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play().catch(playErr => {
-            console.error("Video play error: ", playErr);
-          });
-        }
-      }, 305);
-
-      setFaceScanStep("scanning");
-
-      // Progress animation simulation for scan & alignment
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += 4;
-        setFaceScanProgress(Math.min(progress, 100));
-
-        if (progress >= 35 && progress < 40) {
-          setFaceScanStep("comparing");
-        }
-
-        if (progress >= 100) {
-          clearInterval(interval);
-          completeFaceScan();
-        }
-      }, 150);
-
-    } catch (err: any) {
-      console.error("Camera access error (simulating secure backup pipeline): ", err);
-      // Fallback/Simulated secure camera model if camera is blocked/unsupported (safely guides user experience)
-      setFaceScanStep("scanning");
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += 5;
-        setFaceScanProgress(Math.min(progress, 100));
-
-        if (progress >= 40 && progress < 50) {
-          setFaceScanStep("comparing");
-        }
-
-        if (progress >= 100) {
-          clearInterval(interval);
-          completeFaceScan();
-        }
-      }, 150);
-    }
-  };
-
-  const stopFaceCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-  };
-
-  const completeFaceScan = async () => {
-    try {
-      // Calculate a randomized high compatibility percentage with their current avatar (e.g., 94% - 99%)
-      const score = Math.floor(Math.random() * 6) + 94;
-      setCompatibilityScore(score);
-      setFaceScanStep("success");
-      stopFaceCamera();
-
-      // Send the request to verify user
-      const { verifyFace } = await import("../utils");
-      const updatedUser = await verifyFace(currentUser.id);
-      onProfileUpdated(updatedUser);
-    } catch (err: any) {
-      setFaceScanError(err.message || "Yüz doğrulaması kaydedilemedi.");
-      setFaceScanStep("error");
-      stopFaceCamera();
-    }
-  };
-
-  const closeFaceScan = () => {
-    stopFaceCamera();
-    setIsFaceScanning(false);
-    setFaceScanStep("idle");
-  };
 
   // Phone Verification States
   const [phoneToVerify, setPhoneToVerify] = useState(currentUser.phone || "");
@@ -264,9 +160,16 @@ export default function UserProfile({
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
+      reader.onloadend = async () => {
         if (typeof reader.result === "string") {
-          setAvatarUrl(reader.result);
+          try {
+            const { compressImage } = await import("../utils/imageCompressor");
+            const compressed = await compressImage(reader.result, 200, 200, 0.65);
+            setAvatarUrl(compressed);
+          } catch (err) {
+            console.error(err);
+            setAvatarUrl(reader.result);
+          }
         }
       };
       reader.readAsDataURL(file);
@@ -302,8 +205,8 @@ export default function UserProfile({
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username || !city || !avatarUrl) {
-      setErrorMsg("Kullanıcı adı, yaşadığınız şehir ve profil fotoğrafı alanları zorunludur.");
+    if (!username || !city) {
+      setErrorMsg("Kullanıcı adı ve yaşadığınız şehir alanları zorunludur.");
       return;
     }
 
@@ -315,7 +218,7 @@ export default function UserProfile({
         username,
         city,
         bio,
-        avatarUrl
+        avatarUrl: avatarUrl || DEFAULT_AVATAR
       });
       onProfileUpdated(updatedUser);
       setIsEditing(false);
@@ -347,27 +250,21 @@ export default function UserProfile({
           {/* Profil Fotoğrafı (No visual suggestions - real photo only) */}
           <div>
             <label className="block text-zinc-400 text-xs font-mono uppercase tracking-wider mb-2">
-              Profil Fotoğrafı <span className="text-neon">*</span>
+              Profil Fotoğrafı (İsteğe Bağlı)
             </label>
             <div className="grid grid-cols-1 gap-2.5">
               <div className="flex items-center gap-4 bg-dark-panel/60 p-4 rounded-2xl border border-dark-border">
-                {avatarUrl ? (
-                  <button
-                    type="button"
-                    onClick={() => setAvatarLightboxUrl(avatarUrl)}
-                    className="w-16 h-16 rounded-full border-2 border-neon overflow-hidden shrink-0 relative bg-dark-card shadow-inner shadow-neon/10 cursor-zoom-in hover:scale-105 active:scale-95 transition-all focus:outline-none focus:ring-1 focus:ring-neon/50"
-                    title="Büyütmek için tıklayın"
-                  >
-                    <img src={avatarUrl} alt="Profil" className="w-full h-full object-cover" />
-                  </button>
-                ) : (
-                  <div className="w-16 h-16 rounded-full border-2 border-dashed border-zinc-700 shrink-0 bg-dark-card flex items-center justify-center text-zinc-500 text-xs">
-                    Foto Yok
-                  </div>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setAvatarLightboxUrl(avatarUrl || DEFAULT_AVATAR)}
+                  className="w-16 h-16 rounded-full border-2 border-neon overflow-hidden shrink-0 relative bg-dark-card shadow-inner shadow-neon/10 cursor-zoom-in hover:scale-105 active:scale-95 transition-all focus:outline-none focus:ring-1 focus:ring-neon/50"
+                  title="Büyütmek için tıklayın"
+                >
+                  <img src={avatarUrl || DEFAULT_AVATAR} alt="Profil" className="w-full h-full object-cover" />
+                </button>
                 <div className="flex-1 space-y-1.5 text-left">
                   <p className="text-[10.5px] text-zinc-400 font-sans leading-normal">
-                    Lütfen kendinize ait gerçek bir fotoğraf yükleyin. Profil fotoğrafı, kullanıcı adı ve şehir girmek zorunludur.
+                    İstediğiniz bir profil fotoğrafı yükleyin. Boş bırakırsanız instagram daki gibi boş kullanıcı profili gösterilir.
                   </p>
                   
                   <label className="cursor-pointer inline-flex items-center gap-2 bg-dark-card hover:bg-dark-panel border border-dark-border hover:border-neon/40 text-zinc-300 hover:text-white px-3 py-2 rounded-xl text-[11px] font-sans transition-all select-none active:scale-98">
@@ -426,37 +323,7 @@ export default function UserProfile({
             />
           </div>
 
-          {/* Fotoğraf/Yüz Biyometrik Doğrulama Bölümü */}
-          <div className="p-4 bg-dark-panel/40 rounded-2xl border border-dark-border/60 space-y-3">
-            <div className="text-[11px] text-zinc-500 font-mono uppercase tracking-wider flex items-center gap-1.5">
-              <Camera className="w-3.5 h-3.5 text-neon animate-pulse" /> BİYOMETRİK YÜZ DOĞRULAMA (MAVİ TİK)
-            </div>
 
-            {currentUser.isVerified ? (
-              <div className="flex items-center gap-2 bg-emerald-950/20 border border-emerald-500/20 p-3 rounded-xl text-emerald-400">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                <div className="text-left text-xs font-sans">
-                  <span className="font-bold text-white block">Yüzünüz Doğrulandı</span>
-                  Profiliniz biyometrik yüz doğrulaması yapılarak onaylandı! Mavi Tik rozetiniz aktif.
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3 text-left">
-                <p className="text-[10.5px] text-zinc-400 leading-relaxed font-sans">
-                  Profil fotoğrafınızla yüzünüzün uyumunu kontrol ederek anında "Onaylı Takasçı" mavi tik rozeti kazanın. Güveni artırın ve hemen öne geçin!
-                </p>
-
-                <button
-                  type="button"
-                  onClick={startFaceScan}
-                  className="w-full py-2.5 bg-neon hover:bg-neon/90 text-black font-sans font-bold text-xs rounded-xl transition-all cursor-pointer text-center flex items-center justify-center gap-1.5"
-                >
-                  <Camera className="w-4 h-4" />
-                  <span>Kamerayı Aç ve Yüzünü Tara</span>
-                </button>
-              </div>
-            )}
-          </div>
 
 
 
@@ -873,157 +740,7 @@ export default function UserProfile({
         )}
        </AnimatePresence>
 
-      {/* FACE SCAN OVERLAY */}
-      <AnimatePresence>
-        {isFaceScanning && (
-          <div className="absolute inset-0 bg-black/95 backdrop-blur-md z-[60] flex flex-col justify-center items-center p-6 rounded-[28px] overflow-hidden select-none">
-            <style>{`
-              @keyframes scanLineAnim {
-                0%, 100% { top: 4px; }
-                50% { top: calc(100% - 6px); }
-              }
-            `}</style>
-            <div className="w-full max-w-sm flex flex-col items-center text-center space-y-5">
-              
-              <div className="flex flex-col items-center space-y-1">
-                <div className="text-[10px] font-mono text-neon tracking-widest uppercase bg-neon/10 px-2.5 py-1 rounded-full border border-neon/20">
-                  BİYOMETRİK KİMLİK DOĞRULAMA
-                </div>
-                <h4 className="text-white text-md font-display font-bold mt-2">Güvenli Yüz Tarayıcı</h4>
-                <p className="text-[11px] text-zinc-400 font-sans max-w-[240px]">
-                  Lütfen yüzünüzü aşağıdaki dairesel tarama alanına hizalayın.
-                </p>
-              </div>
 
-              {/* Scanner Frame Box */}
-              <div className="relative w-44 h-44 rounded-full border-2 border-dashed border-zinc-700 p-1 flex items-center justify-center overflow-hidden bg-zinc-950/40">
-                {faceScanStep === "camera_loading" ? (
-                  <div className="flex flex-col items-center justify-center space-y-2">
-                    <RefreshCw className="w-8 h-8 text-neon animate-spin" />
-                    <span className="text-[10px] text-zinc-500 font-mono">KAMERA YÜKLENİYOR...</span>
-                  </div>
-                ) : (
-                  <>
-                    <video 
-                      ref={videoRef} 
-                      className="w-full h-full object-cover rounded-full select-none pointer-events-none transform -scale-x-100" 
-                      playsInline 
-                      muted 
-                    />
-                    
-                    {faceScanStep === "scanning" && (
-                      <>
-                        {/* Shimmer laser scanner line */}
-                        <div 
-                          className="absolute left-0 right-0 h-0.5 bg-neon shadow-[0_0_8px_#14fa8c]" 
-                          style={{ animation: "scanLineAnim 2.5s infinite ease-in-out" }} 
-                        />
-                        {/* Target frame ring */}
-                        <div className="absolute inset-2 border-2 border-neon/50 rounded-full animate-pulse pointer-events-none" />
-                      </>
-                    )}
-
-                    {faceScanStep === "comparing" && (
-                      <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center space-y-2 text-neon">
-                        <RefreshCw className="w-7 h-7 text-neon animate-spin" />
-                        <span className="text-[10px] text-neon font-mono font-bold tracking-wider animate-pulse">HARİTALAMA YAPILIYOR...</span>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* Progress and status */}
-              <div className="w-full space-y-3.5 px-4">
-                {faceScanStep === "scanning" && (
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[11px] font-mono text-zinc-400">
-                      <span>Tarama İlerlemesi</span>
-                      <span className="text-neon">{faceScanProgress}%</span>
-                    </div>
-                    <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-neon transition-all duration-150" 
-                        style={{ width: `${faceScanProgress}%` }} 
-                      />
-                    </div>
-                    <div className="text-[10px] text-zinc-500 font-mono animate-pulse mt-1 select-none">
-                      Gözlerinizi kırpmadan doğrudan kameraya bakın...
-                    </div>
-                  </div>
-                )}
-
-                {faceScanStep === "comparing" && (
-                  <div className="space-y-1 text-center">
-                    <div className="text-[11px] text-neon font-mono uppercase tracking-wider animate-pulse">
-                      Biyometrik Veriler Eşleştiriliyor...
-                    </div>
-                    <div className="text-[10px] text-zinc-455">
-                      Profil fotoğrafınızla eşleşme oranı analiz ediliyor.
-                    </div>
-                  </div>
-                )}
-
-                {faceScanStep === "success" && (
-                  <div className="p-4 bg-emerald-950/20 border border-emerald-500/20 rounded-2xl space-y-2">
-                    <div className="flex items-center gap-1.5 text-emerald-400 justify-center font-bold text-xs select-none">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" /> DOĞRULAMA BAŞARILI!
-                    </div>
-                    <p className="text-[11.5px] text-zinc-300 leading-normal font-sans">
-                      Yüzünüz profil fotoğrafınızla <strong className="text-emerald-400">%{compatibilityScore}</strong> oranında uyuştu. Hesabınız başarıyla <strong>ONAYLANDI</strong>.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={closeFaceScan}
-                      className="mt-1 w-full py-2 bg-emerald-500 text-black font-sans font-bold text-[11px] rounded-xl hover:opacity-90 active:scale-98 transition-all cursor-pointer"
-                    >
-                      Tamamla ve Kapat
-                    </button>
-                  </div>
-                )}
-
-                {faceScanStep === "error" && (
-                  <div className="p-4 bg-red-950/20 border border-red-500/20 rounded-2xl space-y-2">
-                    <div className="text-red-400 font-bold text-xs flex items-center gap-1 justify-center">
-                      HATA OLUŞTU
-                    </div>
-                    <p className="text-[11px] text-zinc-200 leading-normal">
-                      {faceScanError || "Kamera erişimi engellendi veya yüzünüz tanımlanamadı."}
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={startFaceScan}
-                        className="flex-1 py-2 bg-zinc-850 hover:bg-zinc-800 text-white text-[11px] font-sans rounded-xl transition-all"
-                      >
-                        Tekrar Dene
-                      </button>
-                      <button
-                        type="button"
-                        onClick={closeFaceScan}
-                        className="flex-1 py-1.5 bg-red-650 hover:bg-red-600 text-white text-[11px] font-sans rounded-xl transition-all"
-                      >
-                        İptal
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {faceScanStep !== "success" && faceScanStep !== "error" && (
-                  <button
-                    type="button"
-                    onClick={closeFaceScan}
-                    className="text-xs text-zinc-500 hover:text-zinc-350 underline font-sans py-2 block mx-auto cursor-pointer"
-                  >
-                    Vazgeç ve Kamerayı Kapat
-                  </button>
-                )}
-              </div>
-
-            </div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* CUSTOM CONFIRM DELETE DIALOG */}
       <AnimatePresence>
