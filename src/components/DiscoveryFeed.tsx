@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Item, User, SwapOffer } from "../types";
-import { proposeSwap, getItems, reportItem, formatDisplayName, deleteItem } from "../utils";
+import { proposeSwap, getItems, reportItem, formatDisplayName, deleteItem, incrementView } from "../utils";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Heart, 
@@ -127,15 +127,13 @@ export default function DiscoveryFeed({
     if (!activeItem) return;
 
     let isMounted = true;
-    const incrementView = async () => {
+    const incrementViewFunc = async () => {
       try {
-        const res = await fetch(`/api/items/${activeItem.id}`);
-        if (res.ok && isMounted) {
-          const data = await res.json();
-          // Sync the detailed item's backend view counts live into our state list
+        const updatedItem = await incrementView(activeItem.id);
+        if (isMounted && updatedItem) {
           setItems(prevItems => prevItems.map(item => {
             if (item.id === activeItem.id) {
-              return { ...item, views: data.item.views };
+              return { ...item, views: updatedItem.views };
             }
             return item;
           }));
@@ -146,7 +144,7 @@ export default function DiscoveryFeed({
     };
 
     // Trigger increments
-    incrementView();
+    incrementViewFunc();
 
     return () => {
       isMounted = false;
