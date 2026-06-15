@@ -21,7 +21,8 @@ import {
   MapPin,
   Sparkles,
   Search,
-  MessageCircle
+  MessageCircle,
+  CheckCircle2
 } from "lucide-react";
 
 export default function App() {
@@ -36,6 +37,16 @@ export default function App() {
   
   // Chat viewport focus
   const [activeChatSwap, setActiveChatSwap] = useState<SwapOffer | null>(null);
+
+  // Floating feedback popups
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 5000);
+  };
 
   // Load items on mount
   const refreshItemsData = async () => {
@@ -76,10 +87,13 @@ export default function App() {
     setCurrentUser(user);
     if (user) {
       localStorage.setItem("swap_culture_user", JSON.stringify(user));
-      // Refresh user details list
+      // Refresh user details list and item listings
       refreshAllUsersData();
+      refreshItemsData();
     } else {
       localStorage.removeItem("swap_culture_user");
+      refreshItemsData();
+      refreshAllUsersData();
     }
   };
 
@@ -87,6 +101,8 @@ export default function App() {
   const handleSwitchTestingUser = (newUser: User) => {
     setCurrentUser(newUser);
     localStorage.setItem("swap_culture_user", JSON.stringify(newUser));
+    refreshItemsData();
+    refreshAllUsersData();
   };
 
   // Actions callbacks
@@ -95,6 +111,7 @@ export default function App() {
     setAllItems(prev => [newItem, ...prev]);
     // Redirect to discover feed
     setActiveTab("keşfet");
+    showToast("Tebrikler! İlanınız başarıyla yayına alındı. Onu 'Profil > Aktif İlanlarım' sekmesinden görebilirsiniz.");
   };
 
   const handleItemDeleted = async (itemId: string, skipConfirm = false) => {
@@ -121,6 +138,24 @@ export default function App() {
         className="w-full max-w-md h-screen sm:h-[840px] bg-[#000000] text-zinc-100 flex flex-col relative sm:rounded-[40px] sm:border-8 sm:border-dark-outer shadow-2xl shadow-black overflow-hidden"
         id="applet-viewport"
       >
+        {/* Floating Toast notification */}
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              initial={{ opacity: 0, y: -40 }}
+              animate={{ opacity: 1, y: 16 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="absolute top-16 left-4 right-4 z-50 p-4 bg-zinc-900/95 border border-emerald-500/30 text-emerald-400 rounded-2xl shadow-2xl flex items-start gap-3 backdrop-blur-md"
+            >
+              <div className="p-1 rounded-full bg-emerald-500/15 text-emerald-400 mt-0.5 shrink-0">
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+              <p className="text-xs font-sans leading-relaxed font-semibold">
+                {toast.message}
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
         {/* Mobile Camera notch and status indicators inside top bezel */}
         <div className="hidden sm:flex h-6 bg-dark-bg items-center justify-between px-6 text-[10px] text-zinc-500 font-mono select-none">
           <span>{new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}</span>

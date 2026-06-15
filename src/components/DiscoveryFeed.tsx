@@ -126,9 +126,8 @@ export default function DiscoveryFeed({
     try {
       setIsLoading(true);
       const allItems = await getItems();
-      // Filter out items belonging to current user
-      const feedItems = allItems.filter(item => item.userId !== currentUser.id);
-      setItems(feedItems);
+      // Include all items in feed so user can see and verify their own items on Discovery
+      setItems(allItems);
       setCurrentIndex(0);
     } catch (err) {
       console.error("Error loading feed: ", err);
@@ -153,10 +152,9 @@ export default function DiscoveryFeed({
         setTimeout(() => setFeedNotification(null), 3000);
         // Refresh item list
         const allItems = await getItems();
-        const feedItems = allItems.filter(item => item.userId !== currentUser.id);
-        setItems(feedItems);
-        if (currentIndex >= feedItems.length) {
-          setCurrentIndex(Math.max(0, feedItems.length - 1));
+        setItems(allItems);
+        if (currentIndex >= allItems.length) {
+          setCurrentIndex(Math.max(0, allItems.length - 1));
         }
       } else {
         setFeedNotification("İlan silinirken hata oluştu.");
@@ -627,13 +625,22 @@ export default function DiscoveryFeed({
             </div>
 
             {/* Real bottom primary CTA button using the brand logo ArrowUpDown as requested */}
-            <button
-              onClick={() => setIsOfferOpen(true)}
-              className="w-full py-4 mb-3 bg-neon hover:bg-neon/90 text-black font-sans font-black uppercase text-xs rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-[0.985] select-none"
-            >
-              <ArrowUpDown className="w-4 h-4" />
-              <span>Takas Teklifi Et</span>
-            </button>
+            {activeItem.userId === currentUser.id ? (
+              <div
+                className="w-full py-4 mb-3 bg-zinc-800 border border-dark-border/40 text-zinc-400 font-sans font-semibold text-xs rounded-2xl flex items-center justify-center gap-2 select-none cursor-not-allowed"
+              >
+                <UserIcon className="w-4 h-4 text-zinc-500" />
+                <span>Kendi İlanınız</span>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsOfferOpen(true)}
+                className="w-full py-4 mb-3 bg-neon hover:bg-neon/90 text-black font-sans font-black uppercase text-xs rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-[0.985] select-none"
+              >
+                <ArrowUpDown className="w-4 h-4" />
+                <span>Takas Teklifi Et</span>
+              </button>
+            )}
 
             {/* Compact action buttons row at bottom of item panel instead of sidebar - nested close to divider line */}
             <div className="flex items-center justify-between border-t border-zinc-900/60 pt-2.5 mt-2 select-none text-left">
@@ -1075,15 +1082,23 @@ export default function DiscoveryFeed({
                   >
                     Geri Dön
                   </button>
-                  <button 
-                    onClick={() => {
-                      setIsDetailsOpen(false);
-                      setIsOfferOpen(true);
-                    }}
-                    className="flex-1 py-3 bg-neon text-black text-xs font-sans font-black uppercase rounded-2xl hover:opacity-95 transition-opacity flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <ArrowUpDown className="w-3.5 h-3.5" /> Takas Teklifi
-                  </button>
+                  {activeItem.userId === currentUser.id ? (
+                    <div
+                      className="flex-1 py-3 bg-zinc-800 border border-dark-border/40 text-zinc-400 text-xs font-sans font-semibold uppercase rounded-2xl flex items-center justify-center gap-1.5 cursor-not-allowed select-none"
+                    >
+                      Kendi İlanınız
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => {
+                        setIsDetailsOpen(false);
+                        setIsOfferOpen(true);
+                      }}
+                      className="flex-1 py-3 bg-neon text-black text-xs font-sans font-black uppercase rounded-2xl hover:opacity-95 transition-opacity flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <ArrowUpDown className="w-3.5 h-3.5" /> Takas Teklifi
+                    </button>
+                  )}
                 </div>
               </div>
             </motion.div>
