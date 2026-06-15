@@ -299,20 +299,30 @@ export default function MySwaps({ currentUser, onOpenChat, onRefreshUser }: MySw
                   )}
 
                   {/* For Completed Swap: Rate action */}
-                  {swap.status === "completed" && (
-                    <button
-                      disabled={alreadyRated}
-                      onClick={() => setSelectedSwapForRating(swap)}
-                      className={`flex-1 py-2.5 px-3 font-sans font-semibold text-xs rounded-xl flex items-center justify-center gap-1 transition-colors ${
-                        alreadyRated 
-                          ? "bg-dark-panel text-zinc-555 border border-dark-border" 
-                          : "bg-amber-500 hover:bg-amber-600 text-black font-bold"
-                      }`}
-                    >
-                      <Star className="w-4 h-4 fill-current" />
-                      {alreadyRated ? "Puanlandı" : "Kullanıcıyı Değerlendir"}
-                    </button>
-                  )}
+                  {swap.status === "completed" && (() => {
+                    const targetUserId = isOfferer ? swap.receiverId : swap.proposerId;
+                    const alreadyRatedUser = swaps.some(s => {
+                      const term1 = s.proposerId === currentUser.id && s.receiverId === targetUserId && s.proposerRated;
+                      const term2 = s.receiverId === currentUser.id && s.proposerId === targetUserId && s.receiverRated;
+                      return term1 || term2;
+                    });
+                    const ratingDisabled = alreadyRated || alreadyRatedUser;
+
+                    return (
+                      <button
+                        disabled={ratingDisabled}
+                        onClick={() => setSelectedSwapForRating(swap)}
+                        className={`flex-1 py-2.5 px-3 font-sans font-semibold text-xs rounded-xl flex items-center justify-center gap-1 transition-colors ${
+                          ratingDisabled 
+                            ? "bg-dark-panel text-zinc-500 border border-dark-border cursor-not-allowed" 
+                            : "bg-amber-500 hover:bg-amber-600 text-black font-bold"
+                        }`}
+                      >
+                        <Star className="w-4 h-4 fill-current" />
+                        {ratingDisabled ? "Puanlandı" : "Kullanıcıyı Değerlendir"}
+                      </button>
+                    );
+                  })()}
                 </div>
               </div>
             );

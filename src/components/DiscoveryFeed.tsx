@@ -19,8 +19,44 @@ import {
   Info,
   ArrowUpDown,
   Trash2,
-  CheckCircle2
+  CheckCircle2,
+  SlidersHorizontal,
+  Filter
 } from "lucide-react";
+
+const FILTER_CITIES = [
+  "İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", 
+  "Adana", "Konya", "Gaziantep", "Eskişehir", "Trabzon",
+  "Samsun", "Mersin", "Muğla", "Kocaeli", "Denizli"
+];
+
+const FILTER_CATEGORIES = [
+  "Telefon",
+  "Motorlu Araçlar",
+  "Tablet",
+  "Bilgisayar",
+  "Drone",
+  "Fotoğraf Makinesi",
+  "Diğer Elektronik",
+  "Oyun & Konsol",
+  "Giyim & Aksesuar",
+  "Spor & Outdoor",
+  "Müzik Enstrümanları",
+  "Ev & Yaşam",
+  "Hobi & Eğlence",
+  "Kitap, Dergi & Kırtasiye",
+  "Koleksiyon & Antika",
+  "Kozmetik & Kişisel Bakım",
+  "Bebek & Anne",
+  "Otomotiv & Motosiklet Aksesuarları",
+  "Sanat & El Sanatları",
+  "Evcil Hayvan Ürünleri",
+  "Ofis & İş Malzemeleri",
+  "Bahçe & Tarım Ürünleri",
+  "Takı, Saat & Gözlük",
+  "Süpermarket & Gıda",
+  "Diğer"
+];
 
 interface DiscoveryFeedProps {
   currentUser: User;
@@ -40,6 +76,23 @@ export default function DiscoveryFeed({
   const [items, setItems] = useState<Item[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Filter States
+  const [selectedCity, setSelectedCity] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  const applyFilters = (city: string, cat: string) => {
+    setSelectedCity(city);
+    setSelectedCategory(cat);
+    setCurrentIndex(0);
+  };
+
+  const clearFilters = () => {
+    setSelectedCity("");
+    setSelectedCategory("");
+    setCurrentIndex(0);
+  };
   
   // Public Profile Modal State
   const [selectedProfileUser, setSelectedProfileUser] = useState<User | null>(null);
@@ -91,7 +144,6 @@ export default function DiscoveryFeed({
 
   const executeAdminDelete = async () => {
     setIsAdminConfirmingDelete(false);
-    const activeItem = items[currentIndex];
     if (!activeItem) return;
     
     try {
@@ -121,9 +173,19 @@ export default function DiscoveryFeed({
     loadFeed();
   }, [currentUser.id]);
 
+  // Calculate dynamic filtered items reactively
+  const filteredItems = items.filter(item => {
+    const matchCity = !selectedCity || item.city === selectedCity;
+    const matchCategory = !selectedCategory || item.category === selectedCategory;
+    return matchCity && matchCategory;
+  });
+
+  const activeItem = filteredItems[currentIndex];
+
+  const liveProfileUser = selectedProfileUser ? (allUsers.find(u => u.id === selectedProfileUser.id) || selectedProfileUser) : null;
+
   // Real-time View Tracking & Count Synchronization
   useEffect(() => {
-    const activeItem = items[currentIndex];
     if (!activeItem) return;
 
     let isMounted = true;
@@ -149,10 +211,10 @@ export default function DiscoveryFeed({
     return () => {
       isMounted = false;
     };
-  }, [currentIndex, items.length]);
+  }, [currentIndex, filteredItems.length, activeItem?.id]);
 
   const handleNext = () => {
-    if (currentIndex < items.length - 1) {
+    if (currentIndex < filteredItems.length - 1) {
       setCurrentIndex(prev => prev + 1);
       setIsDetailsOpen(false);
     }
@@ -164,8 +226,6 @@ export default function DiscoveryFeed({
       setIsDetailsOpen(false);
     }
   };
-
-  const activeItem = items[currentIndex];
 
   const handleSendOffer = async () => {
     if (!activeItem || !selectedOfferItemId) return;
@@ -234,7 +294,7 @@ export default function DiscoveryFeed({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentIndex, items]);
+  }, [currentIndex, filteredItems]);
 
   if (isLoading) {
     return (
@@ -268,15 +328,121 @@ export default function DiscoveryFeed({
   return (
     <div className="relative h-[calc(100vh-130px)] w-full flex items-center justify-center overflow-hidden bg-dark-bg rounded-3xl" id="discovery-panel">
 
-      <AnimatePresence mode="wait">
-        <motion.div 
-          key={activeItem.id}
-          initial={{ opacity: 0, y: 150 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -150 }}
-          transition={{ duration: 0.35, ease: "easeOut" }}
-          className="absolute inset-0 w-full h-full flex flex-col justify-end bg-dark-bg"
+      {/* Top-Left Filter Action Container */}
+      <div className="absolute left-3 top-4 z-40 select-none flex items-center gap-1.5">
+        <button
+          onClick={() => setIsFilterOpen(!isFilterOpen)}
+          className={`flex items-center gap-2 h-11 px-3.5 rounded-2xl bg-black/60 hover:bg-zinc-800/60 transition-all border border-white/5 active:scale-95 text-xs text-white select-none backdrop-blur-md shadow-xl ${
+            selectedCity || selectedCategory ? "ring-1 ring-neon/40 text-neon font-bold" : ""
+          }`}
+          title="Filtreleme Seçenekleri"
         >
+          <SlidersHorizontal className="w-4 h-4 text-neon" />
+          <span>
+            {selectedCity || selectedCategory ? "Filtreli" : "Filtrele"}
+          </span>
+          {(selectedCity || selectedCategory) && (
+            <span className="w-1.5 h-1.5 rounded-full bg-neon animate-pulse" />
+          )}
+        </button>
+
+        {(selectedCity || selectedCategory) && (
+          <button
+            onClick={clearFilters}
+            className="flex items-center justify-center w-11 h-11 rounded-2xl bg-black/60 border border-white/5 text-zinc-400 hover:text-white transition-all active:scale-90 backdrop-blur-md shadow-xl"
+            title="Filtreleri Temizle"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+
+        {/* Dropdown Filter Panel */}
+        {isFilterOpen && (
+          <div className="absolute left-0 top-12 w-64 bg-zinc-950/95 border border-zinc-850 rounded-2xl p-4 shadow-2xl z-50 backdrop-blur-md text-left">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-zinc-90 w-full border-zinc-900">
+              <span className="text-white text-xs font-mono uppercase tracking-wider font-bold">Takas Filtreleri</span>
+              <button 
+                onClick={() => setIsFilterOpen(false)}
+                className="text-zinc-500 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* City Select */}
+            <div className="space-y-1.5 mb-3">
+              <label className="block text-[9 px] text-zinc-400 font-mono text-[9px] uppercase tracking-wider">Bulunduğu Şehir</label>
+              <select
+                value={selectedCity}
+                onChange={(e) => applyFilters(e.target.value, selectedCategory)}
+                className="w-full bg-zinc-900 border border-zinc-800 text-zinc-300 p-2.5 text-xs focus:outline-none focus:border-neon font-sans cursor-pointer rounded-xl"
+              >
+                <option value="">Tüm Şehirler</option>
+                {FILTER_CITIES.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Category Select */}
+            <div className="space-y-1.5 mb-4">
+              <label className="block text-[9 px] text-zinc-400 font-mono text-[9px] uppercase tracking-wider">Ürün Kategorisi</label>
+              <select
+                value={selectedCategory}
+                onChange={(e) => applyFilters(selectedCity, e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-805 border-zinc-800 text-zinc-300 p-2.5 text-xs focus:outline-none focus:border-neon font-sans cursor-pointer rounded-xl"
+              >
+                <option value="">Tüm Kategoriler</option>
+                {FILTER_CATEGORIES.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mt-1">
+              <button
+                onClick={clearFilters}
+                className="w-full py-1.5 bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-all rounded-xl text-[11px]"
+              >
+                Sıfırla
+              </button>
+              <button
+                onClick={() => setIsFilterOpen(false)}
+                className="w-full py-1.5 bg-neon text-black hover:opacity-90 transition-all rounded-xl text-[11px] font-bold"
+              >
+                Uygula
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {filteredItems.length === 0 ? (
+        <div className="flex flex-col items-center justify-center p-6 text-center select-none max-w-sm animate-fade-in z-20">
+          <div className="p-4 bg-zinc-950/60 border border-zinc-800 rounded-full mb-4 backdrop-blur-sm">
+            <SlidersHorizontal className="w-8 h-8 text-zinc-500 animate-pulse" />
+          </div>
+          <h3 className="text-white text-md font-display font-medium mb-1.5">Aradığınız kriterde ilan bulunamadı</h3>
+          <p className="text-zinc-400 text-xs px-2 mb-5 leading-normal">
+            Seçtiğiniz şehir veya kategoride aktif bir takas ilanı mevcut değil. Diğer filtreleri keşfedebilirsiniz.
+          </p>
+          <button 
+            onClick={clearFilters}
+            className="px-4 py-2 border border-neon/30 hover:bg-neon/15 text-neon font-sans font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 hover:scale-105 active:scale-95 cursor-pointer"
+          >
+            Filtreleri Temizle
+          </button>
+        </div>
+      ) : (
+        <AnimatePresence mode="wait">
+          <motion.div 
+            key={activeItem.id}
+            initial={{ opacity: 0, y: 150 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -150 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
+            className="absolute inset-0 w-full h-full flex flex-col justify-end bg-dark-bg"
+          >
           {/* Main Item Cover Image */}
           <div className="absolute inset-x-0 top-0 h-full w-full">
             <img 
@@ -480,6 +646,7 @@ export default function DiscoveryFeed({
           </div>
         </motion.div>
       </AnimatePresence>
+      )}
 
       {/* SWAP OFFER TRIGGER MODAL PANEL */}
       <AnimatePresence>
@@ -950,16 +1117,16 @@ export default function DiscoveryFeed({
               <div className="flex items-start gap-4 mb-5">
                 <button
                   type="button"
-                  onClick={() => setAvatarLightboxUrl(selectedProfileUser.avatarUrl || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150")}
+                  onClick={() => setAvatarLightboxUrl(liveProfileUser?.avatarUrl || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150")}
                   className="relative shrink-0 select-none cursor-zoom-in active:scale-95 transition-all hover:scale-105 rounded-2xl overflow-hidden focus:outline-none"
                   title="Profil fotoğrafını büyüt"
                 >
                   <img
-                    src={selectedProfileUser.avatarUrl || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"}
-                    alt={selectedProfileUser.username}
+                    src={liveProfileUser?.avatarUrl || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"}
+                    alt={liveProfileUser?.username}
                     className="w-16 h-16 rounded-2xl object-cover border border-dark-border shadow-md"
                   />
-                  {selectedProfileUser.isVerified && (
+                  {liveProfileUser?.isVerified && (
                     <div className="absolute -top-1.5 -right-1.5 bg-sky-500 text-white rounded-full p-0.5 border border-dark-bg flex items-center justify-center w-5 h-5 shadow-sm">
                       <span className="text-[10px] font-black">✓</span>
                     </div>
@@ -969,13 +1136,13 @@ export default function DiscoveryFeed({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <h4 className="text-base font-bold text-white tracking-tight truncate">
-                      @{formatDisplayName(selectedProfileUser.username)}
+                      @{formatDisplayName(liveProfileUser?.username || "")}
                     </h4>
                   </div>
                   
                   {/* Verification Badges */}
                   <div className="flex gap-1.5 mt-2 flex-wrap">
-                    {selectedProfileUser.phoneVerified ? (
+                    {liveProfileUser?.phoneVerified ? (
                       <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                         <span>Telefon Doğrulandı</span>
@@ -990,17 +1157,17 @@ export default function DiscoveryFeed({
                   
                   <div className="flex items-center gap-2 text-xs text-zinc-400 mt-1 select-none">
                     <span className="flex items-center gap-0.5 text-amber-500 font-extrabold">
-                      ★ {selectedProfileUser.rating?.toFixed(1) || "4.9"}
+                      ★ {(liveProfileUser?.rating !== undefined ? liveProfileUser.rating : 5.0).toFixed(1)}
                     </span>
                     <span className="text-zinc-700">•</span>
                     <span className="text-zinc-300 flex items-center gap-1 font-medium">
-                      <MapPin className="w-3 h-3 text-neon" /> {selectedProfileUser.city || "Bursa"}
+                      <MapPin className="w-3 h-3 text-neon" /> {liveProfileUser?.city || "Bursa"}
                     </span>
                   </div>
 
-                  {selectedProfileUser.bio && (
+                  {liveProfileUser?.bio && (
                     <p className="text-xs text-zinc-300 mt-2.5 line-clamp-2 leading-relaxed bg-zinc-950/40 p-2.5 rounded-xl border border-zinc-900/60 font-sans italic">
-                      "{selectedProfileUser.bio}"
+                      "{liveProfileUser.bio}"
                     </p>
                   )}
                 </div>
@@ -1011,13 +1178,13 @@ export default function DiscoveryFeed({
                 <div className="p-3 bg-zinc-950/45 border border-zinc-900/40 rounded-2xl text-center">
                   <div className="text-[9.5px] font-mono text-zinc-550 text-zinc-500 uppercase tracking-widest">Başarılı Takas</div>
                   <div className="text-base font-black text-neon mt-0.5">
-                    {selectedProfileUser.completedSwaps ?? 3}
+                    {liveProfileUser?.completedSwaps ?? 0}
                   </div>
                 </div>
                 <div className="p-3 bg-zinc-950/45 border border-zinc-900/40 rounded-2xl text-center">
                   <div className="text-[9.5px] font-mono text-zinc-550 text-zinc-500 uppercase tracking-widest">Geri Bildirimler</div>
                   <div className="text-base font-black text-white mt-0.5">
-                    {selectedProfileUser.rating?.toFixed(1) || "5.0"} / 5
+                    {(liveProfileUser?.rating !== undefined ? liveProfileUser.rating : 5.0).toFixed(1)} / 5
                   </div>
                 </div>
               </div>
@@ -1027,23 +1194,32 @@ export default function DiscoveryFeed({
                 <h5 className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest mb-3 flex items-center gap-1.5 select-none">
                   <span>Aktif Takas Ürünleri</span>
                   <span className="px-1.5 py-0.5 text-[8.5px] bg-neon/15 text-neon font-black rounded-lg font-sans">
-                    {items.filter(item => item.userId === selectedProfileUser.id).length} İlan
+                    {items.filter(item => item.userId === liveProfileUser?.id).length} İlan
                   </span>
                 </h5>
 
-                {items.filter(item => item.userId === selectedProfileUser.id).length === 0 ? (
+                {items.filter(item => item.userId === liveProfileUser?.id).length === 0 ? (
                   <p className="text-xs text-zinc-500 text-center py-8">Kullanıcının şu an başka aktif ürünü bulunmuyor.</p>
                 ) : (
                   <div className="grid grid-cols-2 gap-3 overflow-y-auto max-h-[32vh] pr-1 pb-2">
-                    {items.filter(item => item.userId === selectedProfileUser.id).map(item => {
+                    {items.filter(item => item.userId === liveProfileUser?.id).map(item => {
                       return (
                         <div
                           key={item.id}
                           onClick={() => {
-                            const indexInFeed = items.findIndex(it => it.id === item.id);
-                            if (indexInFeed !== -1) {
-                              setCurrentIndex(indexInFeed);
+                            let idxInFeed = filteredItems.findIndex(it => it.id === item.id);
+                            if (idxInFeed !== -1) {
+                              setCurrentIndex(idxInFeed);
                               setSelectedProfileUser(null);
+                            } else {
+                              // Clear filters and find index in any items
+                              setSelectedCity("");
+                              setSelectedCategory("");
+                              const idxInAll = items.findIndex(it => it.id === item.id);
+                              if (idxInAll !== -1) {
+                                setCurrentIndex(idxInAll);
+                                setSelectedProfileUser(null);
+                              }
                             }
                           }}
                           className={`group bg-dark-card border rounded-2xl overflow-hidden cursor-pointer transition-all hover:border-neon hover:scale-[1.01] flex flex-col ${

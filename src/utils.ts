@@ -485,6 +485,17 @@ export async function login(paramsOrEmail: string | {
   }
 
   // Normal Email/Password fallback (mock authenticator)
+  // Retrieve the most up-to-date registered users list from the server first to support cross-device logins
+  try {
+    const serverUsers = await apiGet<User[]>("/api/users", db.users);
+    if (serverUsers && serverUsers.length > 0 && serverUsers !== db.users) {
+      db.users = serverUsers;
+      saveLocalDB(db);
+    }
+  } catch (err) {
+    console.warn("Could not sync users from server during login:", err);
+  }
+
   let found = db.users.find(u => u.email.toLowerCase() === email);
   if (!found) {
     if (body.isRegister) {
@@ -619,7 +630,19 @@ export async function getUser(id: string): Promise<User> {
   }
 
   const db = loadLocalDB();
-  const user = db.users.find(u => u.id === id);
+  let user = db.users.find(u => u.id === id);
+  if (!user) {
+    try {
+      const serverUsers = await apiGet<User[]>("/api/users", db.users);
+      if (serverUsers && serverUsers.length > 0) {
+        db.users = serverUsers;
+        saveLocalDB(db);
+      }
+      user = db.users.find(u => u.id === id);
+    } catch (err) {
+      console.warn("Failed to sync users for getUser fallback:", err);
+    }
+  }
   if (!user) throw new Error("Kullanıcı bulunamadı.");
   return user;
 }
@@ -993,6 +1016,21 @@ export async function rateSwap(id: string, raterId: string, rating: number, comm
       const { data: currentSwap } = await supabase.from("swaps").select("*").eq("id", id).single();
       if (currentSwap) {
         const isProposer = currentSwap.proposerId === raterId;
+        const targetUserId = isProposer ? currentSwap.receiverId : currentSwap.proposerId;
+
+        // Check if already rated in Supabase swaps
+        const { data: allSwaps } = await supabase.from("swaps").select("*");
+        if (allSwaps) {
+          const alreadyRatedOther = allSwaps.some(s => {
+            const term1 = s.proposerId === raterId && s.receiverId === targetUserId && s.proposerRated;
+            const term2 = s.receiverId === raterId && s.proposerId === targetUserId && s.receiverRated;
+            return term1 || term2;
+          });
+          if (alreadyRatedOther) {
+            throw new Error("Bu kullanıcıyı daha önce puanladınız. Her kullanıcıyı yalnızca bir kez puanlayabilirsiniz.");
+          }
+        }
+
         const updateAttrs: any = {
           proposerRated: isProposer ? true : currentSwap.proposerRated,
           receiverRated: !isProposer ? true : currentSwap.receiverRated
@@ -1000,7 +1038,6 @@ export async function rateSwap(id: string, raterId: string, rating: number, comm
         const { data: updatedSwap } = await supabase.from("swaps").update(updateAttrs).eq("id", id).select().single();
         
         // Find counterparty to update aggregate score
-        const targetUserId = isProposer ? currentSwap.receiverId : currentSwap.proposerId;
         const { data: tUser } = await supabase.from("users").select("rating, ratingCount").eq("id", targetUserId).single();
         if (tUser) {
           const oldCount = tUser.ratingCount || 0;
@@ -1021,13 +1058,25 @@ export async function rateSwap(id: string, raterId: string, rating: number, comm
   if (!swap) throw new Error("Takas bulunamadı.");
 
   const isProposer = swap.proposerId === raterId;
+  const targetUserId = isProposer ? swap.receiverId : swap.proposerId;
+
+  // Check if already rated in LocalDB swaps
+  const alreadyRatedOther = db.swaps.some(s => {
+    const term1 = s.proposerId === raterId && s.receiverId === targetUserId && s.proposerRated;
+    const term2 = s.receiverId === raterId && s.proposerId === targetUserId && s.receiverRated;
+    return term1 || term2;
+  });
+
+  if (alreadyRatedOther) {
+    throw new Error("Bu kullanıcıyı daha önce puanladınız. Her kullanıcıyı yalnızca bir kez puanlayabilirsiniz.");
+  }
+
   if (isProposer) {
     swap.proposerRated = true;
   } else {
     swap.receiverRated = true;
   }
 
-  const targetUserId = isProposer ? swap.receiverId : swap.proposerId;
   const targetUser = db.users.find(u => u.id === targetUserId);
   if (targetUser) {
     const oldCount = targetUser.ratingCount || 0;
@@ -1038,6 +1087,17 @@ export async function rateSwap(id: string, raterId: string, rating: number, comm
   }
 
   saveLocalDB(db);
+
+  // Sync swap completion ratings across all devices instantly!
+  try {
+    await apiPost<SwapOffer>("/api/swaps", swap, swap);
+    if (targetUser) {
+      await apiPost<User>("/api/users", targetUser, targetUser);
+    }
+  } catch (err) {
+    console.warn("Could not sync rating score to the server:", err);
+  }
+
   return swap;
 }
 
