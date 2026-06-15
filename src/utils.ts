@@ -701,9 +701,14 @@ export async function getItems(): Promise<Item[]> {
         .from("items")
         .select("*")
         .order("createdAt", { ascending: false });
-      if (!error && data) return data as Item[];
-    } catch (e) {
-      console.warn("Supabase getItems fail:", e);
+      if (error) {
+        console.error("Supabase getItems sorgu hatası:", error);
+        throw new Error(`Supabase İlanlar Alınamadı: ${error.message}`);
+      }
+      if (data) return data as Item[];
+    } catch (e: any) {
+      console.error("Supabase getItems istisnası:", e);
+      throw e;
     }
   }
 
@@ -764,9 +769,14 @@ export async function createItem(params: {
         .insert([newItem])
         .select()
         .single();
-      if (!error && data) return data as Item;
-    } catch (e) {
-      console.warn("Supabase createItem fall:", e);
+      if (error) {
+        console.error("Supabase createItem veritabanı hatası:", error);
+        throw new Error(`Supabase İlan Kayıt Hatası: ${error.message} (Kod: ${error.code}, Detay: ${error.details || 'Yok'})`);
+      }
+      if (data) return data as Item;
+    } catch (e: any) {
+      console.error("Supabase createItem istisnası:", e);
+      throw e;
     }
   }
 
