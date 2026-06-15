@@ -86,12 +86,20 @@ export default function App() {
   const handleUserSession = (user: User | null) => {
     setCurrentUser(user);
     if (user) {
-      localStorage.setItem("swap_culture_user", JSON.stringify(user));
+      try {
+        localStorage.setItem("swap_culture_user", JSON.stringify(user));
+      } catch (err) {
+        console.warn("Failed to persist user session to localStorage:", err);
+      }
       // Refresh user details list and item listings
       refreshAllUsersData();
       refreshItemsData();
     } else {
-      localStorage.removeItem("swap_culture_user");
+      try {
+        localStorage.removeItem("swap_culture_user");
+      } catch (err) {
+        console.warn("Failed to remove user session from localStorage:", err);
+      }
       refreshItemsData();
       refreshAllUsersData();
     }
@@ -100,7 +108,11 @@ export default function App() {
   // Switch active user testing helper
   const handleSwitchTestingUser = (newUser: User) => {
     setCurrentUser(newUser);
-    localStorage.setItem("swap_culture_user", JSON.stringify(newUser));
+    try {
+      localStorage.setItem("swap_culture_user", JSON.stringify(newUser));
+    } catch (err) {
+      console.warn("Failed to persist user session after user switch to localStorage:", err);
+    }
     refreshItemsData();
     refreshAllUsersData();
   };

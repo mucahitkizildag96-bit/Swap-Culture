@@ -316,7 +316,55 @@ function loadLocalDB(): LocalDB {
 }
 
 function saveLocalDB(db: LocalDB) {
-  localStorage.setItem("swap_culture_db", JSON.stringify(db));
+  try {
+    localStorage.setItem("swap_culture_db", JSON.stringify(db));
+  } catch (e: any) {
+    console.warn("localStorage save failed, executing self-healing prune mechanism to prevent QuotaExceededError:", e);
+    try {
+      // Step 1: Prune large base64 images from items and chats in the local storage cache
+      const prunedItems = db.items.map(item => {
+        if (item.imageUrl && item.imageUrl.startsWith("data:image")) {
+          // Replace base64 images with Unsplash placeholders for local cache only
+          return { ...item, imageUrl: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600" };
+        }
+        return item;
+      });
+      const prunedChats = db.chats.map(chat => {
+        if (chat.imageUrl && chat.imageUrl.startsWith("data:image")) {
+          return { ...chat, imageUrl: undefined };
+        }
+        return chat;
+      });
+      const prunedDB = { ...db, items: prunedItems, chats: prunedChats };
+      localStorage.setItem("swap_culture_db", JSON.stringify(prunedDB));
+      console.log("Self-healing prune succeeded: base64 images stripped from local cache.");
+    } catch (innerErr: any) {
+      console.error("Pruned save also failed. Executing aggressive cache reduction:", innerErr);
+      try {
+        // Step 2: Keep only essential fields or trim historical cache lists
+        const minimalDB = {
+          ...db,
+          items: db.items.slice(0, 5).map(item => ({
+            ...item,
+            imageUrl: item.imageUrl && item.imageUrl.startsWith("data:image") 
+              ? "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600" 
+              : item.imageUrl
+          })),
+          chats: [], // Clear chat cache
+          reports: [] // Clear reports cache
+        };
+        localStorage.setItem("swap_culture_db", JSON.stringify(minimalDB));
+        console.log("Minimal fallback save succeeded.");
+      } catch (fatalErr: any) {
+         console.error("Critical: Failed to save even a minimal DB to localStorage. Clearing swap_culture_db.", fatalErr);
+         try {
+           localStorage.removeItem("swap_culture_db");
+         } catch (clearErr) {
+           // Completely failed, ignore so that app operations don't freeze
+         }
+      }
+    }
+  }
 }
 
 // -----------------------------------------------------------------------------
